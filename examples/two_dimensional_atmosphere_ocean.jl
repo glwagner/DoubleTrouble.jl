@@ -75,7 +75,7 @@ coupled_model = CoupledAtmosphereOceanModel(surface_grid,
                                             ocean = ocean_simulation,
                                             atmosphere = atmos_simulation)
 
-coupled_simulation = Simulation(coupled_model, Δt=coupling_Δt, stop_iteration=500)
+coupled_simulation = Simulation(coupled_model, Δt=coupling_Δt, stop_iteration=1000)
 
 progress(sim) = @info string("t: ", prettytime(sim),
                              ", atmos iteration: ", iteration(sim.model.components.atmos),
@@ -92,12 +92,16 @@ run!(coupled_simulation)
 t = ζot.times
 Nt = length(t)
 
-fig = Figure()
+fig = Figure(resolution=(1600, 800))
 
-axo = Axis(fig[1, 1], title="Ocean")
-axa = Axis(fig[1, 2], title="Atmosphere")
+axo = Axis(fig[1, 1], xlabel="x (km)", ylabel="y (km)", title="Ocean vorticity")
+axa = Axis(fig[1, 2], xlabel="x (km)", ylabel="y (km)", title="Atmosphere vorticity")
 slider = Slider(fig[2, 1:2], range=1:Nt, startvalue=1)
 n = slider.value
+
+title = @lift string("Two-dimensional coupled atmosphere-ocean at t = ",
+                     prettytime(t[$n]))
+Label(fig[0, 1:2], title)
 
 ζon = @lift interior(ζot[$n], :, :, 1)
 ζan = @lift interior(ζat[$n], :, :, 1)
@@ -105,8 +109,17 @@ n = slider.value
 ζolim = maximum(abs, ζot[1]) / 10
 ζalim = maximum(abs, ζat[1]) / 10
 
-heatmap!(axo, ζon, colormap=:balance, colorrange=(-ζolim, ζolim))
-heatmap!(axa, ζan, colormap=:balance, colorrange=(-ζalim, ζalim))
+x, y, z = nodes(ζot)
+
+x = x ./ 1e3
+y = y ./ 1e3
+
+heatmap!(axo, x, y, ζon, colormap=:balance, colorrange=(-ζolim, ζolim))
+heatmap!(axa, x, y, ζan, colormap=:balance, colorrange=(-ζalim, ζalim))
 
 display(fig)
+
+record(fig, "two_dimensional_atmosphere_ocean.gif", 1:Nt) do nn
+    n[] = nn
+end
 
