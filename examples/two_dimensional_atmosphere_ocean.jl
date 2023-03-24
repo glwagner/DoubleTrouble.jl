@@ -16,8 +16,8 @@ Lx = Ly = 1000kilometers
 Lz = 1kilometer
 
 # Characteristic initial velocities
-U_ocean = 2.0
-U_atmos = 10.0
+U_ocean = 1.0
+U_atmos = 20.0
 
 ocean_Δt = 0.1 * (Lx / oNx) / U_ocean
 atmos_Δt = 0.1 * (Lx / aNx) / U_atmos
