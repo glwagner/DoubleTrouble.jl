@@ -78,9 +78,10 @@ coupled_model = CoupledAtmosphereOceanModel(surface_grid,
 coupled_simulation = Simulation(coupled_model, Δt=coupling_Δt, stop_iteration=1000)
 
 progress(sim) = @info string("t: ", prettytime(sim),
-                             ", atmos iteration: ", iteration(sim.model.components.atmos),
+                             " coupled iter: ", iteration(sim),
+                             ", atmos iter: ", iteration(sim.model.components.atmos),
                              ", atmos Δt : ",       prettytime(sim.model.components.atmos.Δt),
-                             ", ocean iteration: ", iteration(sim.model.components.ocean),
+                             ", ocean iter: ", iteration(sim.model.components.ocean),
                              ", ocean Δt : ",       prettytime(sim.model.components.ocean.Δt))
  
 coupled_simulation.callbacks[:progress] = Callback(progress, IterationInterval(10))
