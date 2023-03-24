@@ -1,0 +1,4 @@
+name = "DoubleTrouble"
+uuid = "596ba803-4db2-45bb-8efc-466af323aaab"
+authors = ["Gregory Wagner <wagner.greg@gmail.com>"]
+version = "0.1.0"
