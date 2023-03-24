@@ -2,3 +2,7 @@ name = "DoubleTrouble"
 uuid = "596ba803-4db2-45bb-8efc-466af323aaab"
 authors = ["Gregory Wagner <wagner.greg@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"

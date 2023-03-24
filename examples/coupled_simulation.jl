@@ -16,8 +16,8 @@ coupling_Δt = 0.05
 ρ_atmos = 1.0
 Cᴰ = 1.0
 
-ocean_grid   = RectilinearGrid(arch, size=(oNx, oNy, oNz), x=(0, 2π), y=(0, 2π), z=(0, 1))
-atmos_grid   = RectilinearGrid(arch, size=(aNx, aNy, aNz), x=(0, 2π), y=(0, 2π), z=(0, 1))
+ocean_grid = RectilinearGrid(arch, size=(oNx, oNy, oNz), x=(0, 2π), y=(0, 2π), z=(0, 1))
+atmos_grid = RectilinearGrid(arch, size=(aNx, aNy, aNz), x=(0, 2π), y=(0, 2π), z=(0, 1))
 
 # Regrid to atmospheric grid for exchanges
 surface_grid = RectilinearGrid(arch, size=(aNx, aNy, 1), x=(0, 2π), y=(0, 2π), z=(0, 1))
