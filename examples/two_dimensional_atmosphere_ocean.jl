@@ -120,7 +120,7 @@ heatmap!(axa, x, y, ζan, colormap=:balance, colorrange=(-ζalim, ζalim))
 
 display(fig)
 
-record(fig, "two_dimensional_atmosphere_ocean.gif", 1:Nt) do nn
+record(fig, "two_dimensional_atmosphere_ocean.mp4", 1:Nt) do nn
     n[] = nn
 end
 
