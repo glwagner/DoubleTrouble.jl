@@ -92,7 +92,7 @@ function compute_surface_fluxes!(fluxes::AtmosphereOcean,
 
     uo = interior(states.ocean.u)
     vo = interior(states.ocean.v)
-    ua = interior(states.atmos.v)
+    ua = interior(states.atmos.u)
     va = interior(states.atmos.v)
 
     # These are arrays for now
