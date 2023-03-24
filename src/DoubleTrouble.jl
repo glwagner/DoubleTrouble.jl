@@ -100,7 +100,7 @@ function compute_surface_fluxes!(fluxes::AtmosphereOcean,
     τax = fluxes.atmos.u
     τay = fluxes.atmos.v
     τox = fluxes.ocean.u
-    τoy = fluxes.ocean.u
+    τoy = fluxes.ocean.v
 
     ρa = bf.atmos_density
     ρo = bf.ocean_density
