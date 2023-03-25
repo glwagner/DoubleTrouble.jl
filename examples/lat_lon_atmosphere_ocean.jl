@@ -1,39 +1,41 @@
 using Oceananigans
 using Oceananigans.Units
 using DoubleTrouble: CoupledAtmosphereOceanModel, relative_vertical_vorticity
+using DoubleTrouble.Utils: split_explicit_substeps
 using GLMakie
 
-# Defint the grid
-arch = CPU()
-oNx = aNx = 360
-oNy = aNy = 120
-oNz = 1
-aNz = 1
+# Define the atmosphere and ocean grid (here, they are identical)
+arch = GPU()
 latitude = (-60, 60)
 longitude = (0, 360)
+oNx = aNx = 720
+oNy = aNy = 240
+oNz = aNz = 1
+z = (0, 1000)
 halo = (5, 5, 5)
 topology = (Periodic, Bounded, Bounded)
-z = (0, Lz)
-Lz = 1000
 
 # Characteristic initial velocities
-U_ocean = 1.0
-U_atmos = 20.0
+U_ocean = 0.1
+U_atmos = 5.0
 
 # Simulation parameters
-ocean_Δt = 20minutes
-atmos_Δt = 10minutes
+ocean_Δt = 10minutes
+atmos_Δt = 1minutes
 coupling_Δt = 2 * ocean_Δt
-stop_time = 1day
+stop_time = 30days
 output_frequency = 2hours 
+ν₄ = (25kilometers)^4 / 12hours
 
 # Simple setup for atmosphere and ocean
-model_setup(grid) = (tracers = nothing,
-                     buoyancy = nothing,
-                     coriolis = HydrostaticSphericalCoriolis(),
-                     momentum_advection = VectorInvariant(vorticity_scheme   = WENO(grid),
-                                                          divergence_scheme  = WENO(grid),
-                                                          vertical_scheme    = WENO(grid)))
+model_setup(Δt, grid) = (tracers = nothing,
+                         buoyancy = nothing,
+                         closure = HorizontalScalarBiharmonicDiffusivity(ν = ν₄),
+                         free_surface = SplitExplicitFreeSurface(; substeps=split_explicit_substeps(Δt, grid)),
+                         coriolis = HydrostaticSphericalCoriolis(),
+                         momentum_advection = VectorInvariant(vorticity_scheme   = WENO(grid),
+                                                              divergence_scheme  = WENO(grid),
+                                                              vertical_scheme    = WENO(grid)))
 
 # Atmospheric model
 atmos_grid = LatitudeLongitudeGrid(arch, size=(aNx, aNy, aNz); latitude, longitude, z, halo, topology)
@@ -43,7 +45,7 @@ atmos_u_bcs = FieldBoundaryConditions(bottom = FluxBoundaryCondition(interior(at
 atmos_v_bcs = FieldBoundaryConditions(bottom = FluxBoundaryCondition(interior(atmos_τy, :, :, 1)))
 
 atmos_model = HydrostaticFreeSurfaceModel(; grid = atmos_grid,
-                                          model_setup(atmos_grid)...,
+                                          model_setup(atmos_Δt, atmos_grid)...,
                                           boundary_conditions = (u=atmos_u_bcs, v=atmos_v_bcs))  
 
 ϵ(x, y, z) = U_atmos * (2rand() - 1)
@@ -63,7 +65,7 @@ ocean_τy = YFaceField(ocean_grid, indices=(:, :, oNz))
 ocean_u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(interior(ocean_τx, :, :, 1)))
 ocean_v_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(interior(ocean_τy, :, :, 1)))
 ocean_model = HydrostaticFreeSurfaceModel(; grid = ocean_grid,
-                                  model_setup(atmos_grid)...,
+                                  model_setup(ocean_Δt, ocean_grid)...,
                                   boundary_conditions = (u=ocean_u_bcs, v=ocean_v_bcs))  
 
 
@@ -103,13 +105,12 @@ Nt = length(t)
 
 fig = Figure(resolution=(1600, 800))
 
-axo = Axis(fig[1, 1], xlabel="x (km)", ylabel="y (km)", title="Ocean vorticity")
-axa = Axis(fig[1, 2], xlabel="x (km)", ylabel="y (km)", title="Atmosphere vorticity")
+axo = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", title="Ocean relative vorticity")
+axa = Axis(fig[1, 2], xlabel="Longitude", ylabel="Latitude", title="Atmosphere relative vorticity")
 slider = Slider(fig[2, 1:2], range=1:Nt, startvalue=1)
 n = slider.value
 
-title = @lift string("Two-dimensional coupled atmosphere-ocean at t = ",
-                     prettytime(t[$n]))
+title = @lift string("Coupled atmosphere-ocean at t = ", prettytime(t[$n]))
 Label(fig[0, 1:2], title)
 
 ζon = @lift interior(ζot[$n], :, :, 1)
@@ -118,17 +119,15 @@ Label(fig[0, 1:2], title)
 ζolim = maximum(abs, ζot[1]) / 10
 ζalim = maximum(abs, ζat[1]) / 10
 
-x, y, z = nodes(ζot)
+λ, φ, z = nodes(ζot)
 
-x = x ./ 1e3
-y = y ./ 1e3
-
-heatmap!(axo, x, y, ζon, colormap=:balance, colorrange=(-ζolim, ζolim))
-heatmap!(axa, x, y, ζan, colormap=:balance, colorrange=(-ζalim, ζalim))
+heatmap!(axo, λ, φ, ζon, colormap=:balance, colorrange=(-ζolim, ζolim))
+heatmap!(axa, λ, φ, ζan, colormap=:balance, colorrange=(-ζalim, ζalim))
 
 display(fig)
 
+#=
 record(fig, "two_dimensional_atmosphere_ocean.mp4", 1:Nt) do nn
     n[] = nn
 end
-
+=#

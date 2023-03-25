@@ -16,6 +16,8 @@ import Oceananigans.TimeSteppers: time_step!, update_state!
 import Oceananigans.Models: initialize_model!
 import Oceananigans.Simulations: reset!
 
+include("Utils.jl")
+
 reset!(::Nothing) = nothing # silly Oceananigans # ⟨⟨ eyes ⟩⟩
 
 const OceananigansModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
