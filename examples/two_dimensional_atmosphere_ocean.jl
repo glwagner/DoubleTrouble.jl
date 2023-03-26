@@ -1,6 +1,9 @@
+using DoubleTrouble: CoupledAtmosphereOceanModel
+using DoubleTrouble.Utils: plane_simulation
+using DoubleTrouble.Fluxes: Flux, AirSeaQuadraticDrag, AirSeaTracerTransfer
+
 using Oceananigans
 using Oceananigans.Units
-using DoubleTrouble: CoupledAtmosphereOceanModel, relative_vertical_vorticity
 using GLMakie
 
 arch = CPU()
@@ -23,59 +26,33 @@ ocean_Δt = 0.1 * (Lx / oNx) / U_ocean
 atmos_Δt = 0.1 * (Lx / aNx) / U_atmos
 coupling_Δt = 2 * ocean_Δt
 
-# Atmospheric model
-atmos_grid = RectilinearGrid(arch, size=(aNx, aNy, aNz), x=(0, Lx), y=(0, Ly), z=(0, Lz))
-atmos_τx = XFaceField(atmos_grid, indices=(:, :, 1))
-atmos_τy = YFaceField(atmos_grid, indices=(:, :, 1))
-atmos_u_bcs = FieldBoundaryConditions(bottom = FluxBoundaryCondition(interior(atmos_τx, :, :, 1)))
-atmos_v_bcs = FieldBoundaryConditions(bottom = FluxBoundaryCondition(interior(atmos_τy, :, :, 1)))
-
-atmos_model = NonhydrostaticModel(; grid = atmos_grid,
-                                  advection = WENO(),
-                                  boundary_conditions = (u=atmos_u_bcs, v=atmos_v_bcs))  
+x = (0, Lx)
+y = (0, Ly)
+tracers = (:T, :CO₂)
+atmos = plane_simulation(size=(aNx, aNy); x, y, tracers, filename="atmos.jld2", interface=:bottom)
+ocean = plane_simulation(size=(oNx, oNy); x, y, tracers, filename="ocean.jld2", interface=:top)
 
 ϵ(x, y, z) = U_atmos * (2rand() - 1)
-set!(atmos_model, u=ϵ, v=ϵ)
-
-atmos_simulation = Simulation(atmos_model; Δt=atmos_Δt)
-atmos_wizard = TimeStepWizard(cfl=0.2, max_change=1.1)
-atmos_simulation.callbacks[:wizard] = Callback(atmos_wizard, IterationInterval(10))
-atmos_outputs = (; ζ = relative_vertical_vorticity(atmos_model))
-atmos_simulation.output_writers[:jld2] = JLD2OutputWriter(atmos_model, atmos_outputs,
-                                                          schedule = IterationInterval(10),
-                                                          filename = "atmos_output.jld2",
-                                                          overwrite_existing = true)
-
-# Ocean model
-ocean_grid = RectilinearGrid(arch, size=(oNx, oNy, oNz), x=(0, Lx), y=(0, Ly), z=(0, Lz))
-ocean_τx = XFaceField(ocean_grid, indices=(:, :, oNz))
-ocean_τy = YFaceField(ocean_grid, indices=(:, :, oNz))
-ocean_u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(interior(ocean_τx, :, :, 1)))
-ocean_v_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(interior(ocean_τy, :, :, 1)))
-ocean_model = NonhydrostaticModel(; grid=ocean_grid, advection=WENO(),
-                                  boundary_conditions = (u=ocean_u_bcs, v=ocean_v_bcs))  
-
+set!(atmos.model, u=ϵ, v=ϵ)
 
 ϵ(x, y, z) = U_ocean * (2rand() - 1)
-set!(ocean_model, u=ϵ, v=ϵ)
-ocean_simulation = Simulation(ocean_model; Δt=ocean_Δt)
-ocean_wizard = TimeStepWizard(cfl=0.2, max_change=1.1)
-ocean_simulation.callbacks[:wizard] = Callback(ocean_wizard, IterationInterval(10))
-ocean_outputs = (; ζ = relative_vertical_vorticity(ocean_model))
-ocean_simulation.output_writers[:jld2] = JLD2OutputWriter(ocean_model, ocean_outputs,
-                                                          schedule = IterationInterval(10),
-                                                          filename = "ocean_output.jld2",
-                                                          overwrite_existing = true)
+set!(ocean.model, u=ϵ, v=ϵ)
 
-# Coupled model
-surface_grid = RectilinearGrid(arch, size=(aNx, aNy), x=(0, Lx), y=(0, Ly),
-                               topology=(Periodic, Periodic, Flat))
+@show quadratic_drag = AirSeaQuadraticDrag()
+@show heat_transfer = AirSeaTracerTransfer(:T, 1e-2)
+@show co2_transfer = AirSeaTracerTransfer(:CO₂, 1e-3)
 
-coupled_model = CoupledAtmosphereOceanModel(surface_grid,
-                                            ocean = ocean_simulation,
-                                            atmosphere = atmos_simulation)
+grid = atmos.model.grid
+momentum_flux = Flux(quadratic_drag, grid)
+heat_flux = Flux(heat_transfer, grid)
+carbon_flux = Flux(co2_transfer, grid)
 
-coupled_simulation = Simulation(coupled_model, Δt=coupling_Δt, stop_iteration=1000)
+model = CoupledAtmosphereOceanModel(ocean = ocean,
+                                    atmosphere = atmos,
+                                    fluxes = (momentum_flux, heat_flux, carbon_flux))
+
+#=
+coupled_simulation = Simulation(coupled_model, Δt=coupling_Δt, stop_iteration=10)
 
 progress(sim) = @info string("t: ", prettytime(sim),
                              " coupled iter: ", iteration(sim),
@@ -88,8 +65,8 @@ coupled_simulation.callbacks[:progress] = Callback(progress, IterationInterval(1
 
 run!(coupled_simulation)
 
-ζot = FieldTimeSeries("ocean_output.jld2", "ζ")
-ζat = FieldTimeSeries("atmos_output.jld2", "ζ")
+ζot = FieldTimeSeries("ocean.jld2", "ζ")
+ζat = FieldTimeSeries("atmos.jld2", "ζ")
 t = ζot.times
 Nt = length(t)
 
@@ -123,4 +100,4 @@ display(fig)
 record(fig, "two_dimensional_atmosphere_ocean.mp4", 1:Nt) do nn
     n[] = nn
 end
-
+=#
